@@ -1,0 +1,23 @@
+[
+  {
+    "sender": "billing@internet-provider.example",
+    "subject": "Important: Your monthly plan price is changing",
+    "date": "2026-08-20",
+    "merchant": "Internet Provider",
+    "event_type": "price_increase",
+    "old_price": 65.00,
+    "new_price": 89.00,
+    "currency": "CAD",
+    "effective_date": "2026-09-01"
+  },
+  {
+    "sender": "subscriptions@adobe.example",
+    "subject": "Your subscription renews soon",
+    "date": "2026-08-21",
+    "merchant": "Adobe",
+    "event_type": "renewal",
+    "amount": 599.00,
+    "currency": "CAD",
+    "renewal_date": "2026-09-04"
+  }
+]
