@@ -3,3 +3,16 @@
 .venv/
 __pycache__/
 *.pyc
+
+credentials.json
+token.json
+
+# Runtime / local state
+data/state.json
+data/action_log.json
+data/events.json
+data/notifications.json
+data/*.backup.json
+
+# Temporary code backups
+tools/*.json-backup.py
