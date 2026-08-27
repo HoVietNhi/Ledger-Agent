@@ -1,0 +1,37 @@
+[
+  {
+    "merchant": "Netflix",
+    "amount": 15.99,
+    "currency": "CAD",
+    "date": "2026-06-21",
+    "type": "subscription"
+  },
+  {
+    "merchant": "Netflix",
+    "amount": 15.99,
+    "currency": "CAD",
+    "date": "2026-07-21",
+    "type": "subscription"
+  },
+  {
+    "merchant": "Netflix",
+    "amount": 22.99,
+    "currency": "CAD",
+    "date": "2026-08-21",
+    "type": "subscription"
+  },
+  {
+    "merchant": "Spotify",
+    "amount": 11.99,
+    "currency": "CAD",
+    "date": "2026-08-10",
+    "type": "subscription"
+  },
+  {
+    "merchant": "Grocery Store",
+    "amount": 86.42,
+    "currency": "CAD",
+    "date": "2026-08-18",
+    "type": "purchase"
+  }
+]
