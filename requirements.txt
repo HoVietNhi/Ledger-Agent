@@ -5,4 +5,5 @@ google-api-core[grpc]==2.34.0
 google-cloud-pubsub==2.39.2
 google-api-python-client
 google-auth-oauthlib
-ftfy==6.3.1
+ftfy==6.3.1stripe==15.6.0
+plaid-python==43.0.0

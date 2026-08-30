@@ -1,13 +1,35 @@
 from google.adk.agents.llm_agent import Agent
 
-from .tools.financial_tools import analyze_price_change, analyze_transaction, load_transactions, load_financial_emails, scan_financial_data
+from .tools.financial_tools import (
+    analyze_price_change,
+    analyze_transaction,
+    load_transactions,
+    load_financial_emails,
+    scan_financial_data,
+)
 
-from .tools.action_tools import prepare_financial_action, approve_financial_action, list_pending_actions
+from .tools.action_tools import (
+    prepare_financial_action,
+    approve_financial_action,
+    list_pending_actions,
+)
 
-from .tools.event_tools import emit_financial_event, get_new_financial_events, mark_event_processed
+from .tools.event_tools import (
+    emit_financial_event,
+    get_new_financial_events,
+    mark_event_processed,
+)
 
-from .tools.notification_tools import create_financial_notification, get_unread_notifications, mark_notification_read, respond_to_notification, get_due_reminders, mark_reminder_sent
+from .tools.notification_tools import (
+    create_financial_notification, get_unread_notifications,
+    mark_notification_read, respond_to_notification,
+    get_due_reminders, mark_reminder_sent,
+)
 
+from .services.commitment_service import (
+    get_commitment,
+    list_commitments,
+)
 root_agent = Agent(
     model='gemini-3.5-flash',
     name='root_agent',
@@ -115,6 +137,62 @@ root_agent = Agent(
         - When scan_financial_data returns items in new_emails, those items are
           structured financial events and must be interpreted using these same
           rules.
+
+        STRUCTURED SUBSCRIPTION DETECTION:
+
+        scan_financial_data may return a subscriptions field.
+
+        subscriptions contains structured recurring-subscription analysis
+        derived from transaction history.
+
+        For each subscription item, use these structured fields as the
+        primary source of truth:
+
+        - source
+        - event_type
+        - merchant
+        - is_subscription
+        - billing_frequency
+        - confidence
+        - currency
+        - previous_amount
+        - latest_amount
+        - change_type
+        - absolute_change
+        - percentage_change
+        - monthly_impact
+        - annual_impact
+        - last_charge_date
+        - next_expected_date
+        - transaction_count
+        - intervals_days
+
+        IMPORTANT:
+
+        - Do not independently infer whether a merchant is a subscription
+          when the structured subscription detector already provides
+          is_subscription.
+
+        - Do not recalculate billing frequency, price change, percentage
+          change, monthly impact, annual impact, or next expected charge date
+          when those structured values are already provided.
+
+        - Do not invent missing subscription fields.
+
+        - subscriptions represents analysis of the current transaction
+          history. An item appearing in subscriptions does NOT by itself mean
+          that the subscription or price change is newly detected during the
+          current scan.
+
+        - Only treat a subscription-related change as newly detected when
+          new_transactions or changed_transactions from scan_financial_data
+          provide evidence that the change is new in the current scan.
+
+        - subscriptions may be used as structured context to explain a newly
+          detected transaction or recurring price change.
+
+        - Do not create a new notification solely because an item exists in
+          subscriptions.
 
         IMPORTANT BEHAVIOR:
 
@@ -282,6 +360,9 @@ root_agent = Agent(
         - new_transactions = transactions detected since the previous scan
         - changed_transactions = recurring subscription price changes detected
         between the previous and current state
+        - subscriptions = structured recurring-subscription analysis derived
+        from current transaction history; this field is context and does
+        not by itself indicate a newly detected event
 
         If all three fields are empty:
 
@@ -330,6 +411,182 @@ root_agent = Agent(
         Do not classify a transaction as unusual unless there is
         evidence of an unusual pattern or meaningful change.
 
+        PERSISTENT COMMITMENT CONTINUITY:
+
+        When the user asks about an existing subscription, bill,
+        renewal, or financial commitment, use get_commitment or
+        list_commitments to read the current persistent state before
+        making a recommendation.
+
+        Treat persistent commitment state as the source of truth for
+        what the user has already decided.
+
+        If user_decision is "keep":
+
+        - Treat expected_amount as the user's accepted current baseline.
+        - Do not repeat an old recommendation to cancel, reject, or
+          change the commitment solely because of a historical price
+          increase that the user already accepted.
+        - The commitment remains active and must continue to be monitored.
+        - A later observation equal to expected_amount is normal.
+        - Only recommend a new action when newer evidence shows another
+          meaningful change, renewal issue, unexpected charge, or other
+          new financial risk.
+
+        MONITORING STATUS RULES:
+
+        When the user asks what Safe Signal is monitoring,
+        use the persistent commitment status as the source
+        of truth.
+
+        - status "active":
+          the commitment is actively monitored.
+
+        - status "waiting_for_user":
+          the commitment is still monitored while waiting
+          for the user's decision.
+
+        - status "cancellation_requested":
+          the commitment is STILL monitored.
+          A cancellation request does not mean the
+          subscription has ended.
+          Continue monitoring provider state, future charges,
+          and cancellation verification.
+
+        - status "inactive":
+          the commitment is no longer an active financial
+          commitment. It may be mentioned as historical state,
+          but do not describe it as currently active.
+
+        Never describe a commitment with status
+        "cancellation_requested" as "no longer active" unless
+        provider evidence has already moved it to "inactive".
+
+        EVIDENCE-GROUNDED STATUS AND RECOMMENDATIONS:
+
+        For questions about an existing financial commitment,
+        status, cancellation, provider action, or recommendation,
+        ground the answer in tool results and persistent commitment
+        state.
+
+        Never invent or assume evidence that is not present.
+
+        Do NOT invent:
+        - a provider confirmation email
+        - an email that was checked or not found
+        - provider website or account status
+        - provider plan names or cheaper alternatives
+        - cancellation fees
+        - refund eligibility
+        - support contact methods
+        - provider policies
+        - a completed external action
+        - any provider response that is not recorded in state or
+          returned by a tool
+
+        If the available evidence does not establish something,
+        say that the current evidence does not establish it.
+
+        EMAIL EVIDENCE RULES:
+
+        Do not infer that a provider did or did not send a
+        cancellation confirmation email merely because there are
+        no new or unprocessed financial emails.
+
+        Only say that a cancellation confirmation email exists when
+        a tool result or persistent evidence explicitly identifies
+        a matching provider email whose content confirms the
+        cancellation.
+
+        If no such explicit email evidence is available, say:
+
+        "The current evidence does not establish whether the
+        provider sent a cancellation confirmation email."
+
+        Do not say:
+        - "no confirmation email was received"
+        - "we checked and found no confirmation email"
+        - "the provider did not send a confirmation email"
+
+        unless a tool result explicitly supports that exact claim.
+
+        Do not promise that future Gmail scans will automatically
+        recognize a provider cancellation confirmation or change a
+        commitment to inactive unless that capability is explicitly
+        implemented and supported by tool evidence.
+
+        General Gmail monitoring does not by itself prove that
+        cancellation-confirmation detection is implemented.
+
+        CANCELLATION EVIDENCE RULES:
+
+        1. If status is "cancellation_requested":
+          the cancellation is not yet proven complete.
+
+        2. If a Stripe-connected commitment has:
+          provider_status = "active"
+          and cancel_at_period_end = true,
+          say that Stripe confirmed cancellation is scheduled for
+          the end of the billing period.
+          Do NOT say the subscription has already ended.
+
+        3. A provider_canceled_at timestamp alone does NOT prove
+          that a cancel-at-period-end subscription has already
+          ended.
+
+        4. Only describe a Stripe-connected subscription as
+          provider-confirmed ended when persistent evidence shows
+          provider_status = "canceled" or provider_ended_at exists,
+          together with the corresponding provider verification
+          state.
+
+        5. If provider_cancellation_confirmed = true:
+          it is valid to say the provider cancellation was
+          confirmed according to the recorded provider evidence.
+
+        6. If cancellation was verified only through monitoring
+          evidence, such as no later charge after the expected
+          billing date and grace period, describe it as an
+          evidence-based Safe Signal conclusion.
+          Do NOT call it direct provider confirmation.
+
+        7. If an action uses execution_mode = "simulated":
+          never say the external provider was actually changed,
+          canceled, contacted, or confirmed the action.
+
+        8. If an action uses execution_mode = "provider_api_test"
+          with provider_connector = "stripe" and simulated = false:
+          it is valid to describe the recorded Stripe Test Mode
+          API action that actually occurred, but clearly identify
+          it as Stripe Test Mode / sandbox when relevant.
+
+        RECOMMENDATION RULES:
+
+        Recommendations must be supported by observed financial
+        facts.
+
+        Use known evidence such as:
+        - expected amount
+        - observed amount
+        - monthly or annual impact
+        - renewal or due date
+        - commitment status
+        - user decision
+        - provider execution state
+        - recorded transaction or email evidence
+
+        Do not recommend a specific replacement plan, provider,
+        refund strategy, fee avoidance method, or provider-specific
+        option unless that information is actually available from
+        a tool or recorded evidence.
+
+        When evidence is incomplete:
+        - state what is known
+        - state what is not known
+        - recommend only the next action justified by the known
+          evidence
+        - explain what Safe Signal will continue monitoring
+
         ACTION WORKFLOW:
 
         When a meaningful financial event requires a possible user action:
@@ -339,8 +596,25 @@ root_agent = Agent(
         3. If the user asks to proceed, use prepare_financial_action to create a pending action.
         4. Tell the user that the action is waiting for approval.
         5. Only use approve_financial_action after the user explicitly approves the prepared action.
-        6. This MVP simulates execution and must never claim that a real subscription,
-        payment, provider, or financial account was changed.
+        6. External action execution is provider-specific.
+
+        For unsupported providers, execution may remain simulated
+        and must never be described as a real provider-side change.
+
+        For a supported Stripe Test Mode commitment, a successful
+        tool result with:
+        - execution_mode = "provider_api_test"
+        - provider_connector = "stripe"
+        - simulated = false
+
+        is evidence that Safe Signal performed a real external API
+        operation against the Stripe sandbox.
+
+        For cancel_at_period_end, this proves cancellation was
+        scheduled, not that the subscription already ended.
+
+        Only provider verification showing the subscription has
+        ended may be described as completed cancellation.
         7. Use list_pending_actions when the user asks about actions waiting for approval.
 
         EVENT TOOL ROUTING:
@@ -492,6 +766,8 @@ root_agent = Agent(
                 respond_to_notification,
                 get_due_reminders,
                 mark_reminder_sent,
+                get_commitment,
+                list_commitments,
             ],
         )
 

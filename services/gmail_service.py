@@ -39,7 +39,7 @@ def _normalize_email_text(value: str | None) -> str:
     Normalize email text and repair common Unicode/mojibake issues.
 
     Examples:
-        Viá»‡t Nhi -> Việt Nhi
+        Mojibake text is repaired when possible.
         normal ASCII/Unicode text remains unchanged.
     """
     if not value:
@@ -47,7 +47,6 @@ def _normalize_email_text(value: str | None) -> str:
 
     text = str(value)
 
-    # Decode RFC 2047 headers such as =?UTF-8?...?=
     try:
         text = str(make_header(decode_header(text)))
     except Exception:

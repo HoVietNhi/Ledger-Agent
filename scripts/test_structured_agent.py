@@ -14,7 +14,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-import my_agent.tools.financial_tools as financial_tools
+from my_agent.agent import root_agent
 
 
 def fake_load_financial_emails() -> list:
@@ -54,11 +54,25 @@ def fake_load_financial_emails() -> list:
     ]
 
 
-# Patch BEFORE importing the agent so the registered tool
-# uses our controlled structured fixture.
-financial_tools.load_financial_emails = fake_load_financial_emails
+# Keep the real ADK tool name.
+fake_load_financial_emails.__name__ = "load_financial_emails"
 
-from my_agent.agent import root_agent
+patched_email_tool = False
+
+
+# Replace the exact function already registered in root_agent.
+for index, tool in enumerate(root_agent.tools):
+    tool_name = getattr(tool, "__name__", None)
+
+    if tool_name == "load_financial_emails":
+        root_agent.tools[index] = fake_load_financial_emails
+        patched_email_tool = True
+
+
+print(
+    "PATCHED load_financial_emails:",
+    patched_email_tool,
+)
 
 
 async def main():
@@ -87,9 +101,12 @@ async def main():
                 text=(
                     "Check my financial emails. "
                     "Use the structured financial event returned "
-                    "by the tool and tell me the amount, monthly "
-                    "impact, annual impact, renewal date, and "
-                    "whether the renewal date is explicit or derived."
+                    "by the tool as the source of truth. "
+                    "Tell me the merchant, product, amount, "
+                    "monthly impact, annual impact, renewal date, "
+                    "and whether the renewal date is explicit "
+                    "or derived. "
+                    "Do not recalculate or invent missing data."
                 )
             )
         ],
@@ -100,10 +117,7 @@ async def main():
         session_id=session_id,
         new_message=message,
     ):
-        if (
-            event.content
-            and event.content.parts
-        ):
+        if event.content and event.content.parts:
             for part in event.content.parts:
                 if getattr(part, "text", None):
                     print(part.text)

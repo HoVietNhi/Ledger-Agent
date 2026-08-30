@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Safe Signal</title>
+
+    <link
+        rel="stylesheet"
+        href="./styles.css"
+    >
+</head>
+
+<body class="safesignal-ui">
+
+<div class="app">
+
+    <!-- =========================================
+         SIDEBAR
+    ========================================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+        <div class="brand-icon">
+            <span class="brand-logo-star"></span>
+            <span class="brand-logo-sparkle"></span>
+        </div>
+
+        <div class="brand-name">SAFE SIGNAL</div>
+    </div>
+
+    <nav class="nav">
+
+            <button
+                class="nav-item active"
+                data-target="overviewSection"
+             data-label="Overview">
+                <span>⌂</span>
+                Overview
+            </button>
+
+            <button
+                class="nav-item"
+                data-target="alertsPanel"
+             data-label="Needs attention">
+                <span>!</span>
+                Needs attention
+            </button>
+
+            <button
+                class="nav-item"
+                data-target="subscriptionsPanel"
+             data-label="Subscriptions">
+                <span>◫</span>
+                Subscriptions
+            </button>
+
+            <button
+                class="nav-item"
+                data-target="financialInboxPanel"
+             data-label="Financial inbox">
+                <span>✉</span>
+                Financial inbox
+            </button>
+
+            <button
+                class="nav-item"
+                data-target="actionsPanel"
+             data-label="Actions">
+                <span>✓</span>
+                Actions
+            </button>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+
+            <div class="agent-status">
+
+                <span class="status-dot"></span>
+
+                <div>
+                    <strong>
+                        Monitoring active
+                    </strong>
+
+                    <small>
+                        Working in the background
+                    </small>
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =========================================
+         MAIN
+    ========================================== -->
+
+    <main class="main">
+
+        <!-- =====================================
+             PAGE INTRO
+        ====================================== -->
+
+        <header
+            class="header reference-hero"
+            id="overviewSection"
+            data-view="overview"
+        >
+
+            <div class="reference-hero-copy">
+
+                <p class="eyebrow">
+                    YOUR FINANCES
+                </p>
+
+                <h1>
+                    Good morning.
+                </h1>
+
+                <p class="reference-hero-subtitle">
+                    I've summarized your financial updates for today.
+                </p>
+
+                <div class="reference-agent-line">
+                    <span class="reference-live-dot"></span>
+
+                    <strong>
+                        Monitoring active
+                    </strong>
+
+                    <span>
+                        Safe Signal is working quietly in the background.
+                    </span>
+                </div>
+
+                <button
+                    id="scanButton"
+                    type="button"
+                >
+                    Refresh
+                </button>
+
+            </div>
+
+
+            <div class="reference-action-wrap">
+
+                <div class="reference-speech">
+                    I've got<br>
+                    your back!
+                </div>
+
+                <span class="reference-heart heart-one">
+                    &#9829;
+                </span>
+
+                <span class="reference-star sparkle-one">
+                    &#10022;
+                </span>
+
+                <span class="reference-star sparkle-two">
+                    &#10022;
+                </span>
+
+                <img
+                    class="reference-mascot"
+                    src="./assets/safesignal-star.png"
+                    alt="Safe Signal financial agent"
+                >
+
+
+                <section class="reference-next-action">
+
+                    <div class="reference-action-label">
+                        <span>
+                            &#10022;
+                        </span>
+
+                        Next Agent Action
+                    </div>
+
+                    <h2>
+                        Adobe Creative Cloud renewal is coming up
+                    </h2>
+
+                    <p>
+                        CAD 599.00
+                        <span class="reference-dot-separator">
+                            &bull;
+                        </span>
+                        Due Sep 4, 2026
+                    </p>
+
+                    <div class="reference-action-buttons">
+
+                        <button
+                            type="button"
+                            id="reviewNextActionButton"
+                            class="reference-action-primary"
+                        >
+                            Review &amp; Decide
+                        </button>
+
+                        <button
+                            type="button"
+                            id="remindNextActionButton"
+                            class="reference-action-secondary"
+                        >
+                            Remind Me Later
+                        </button>
+
+                    </div>
+
+                </section>
+
+            </div>
+
+        </header>
+
+
+        <!-- =====================================
+             1. NEEDS ATTENTION — FIRST
+        ====================================== -->
+
+        <section
+            class="panel alerts-panel"
+            id="alertsPanel"
+            data-view="overview alerts"
+        >
+
+            <div class="panel-header">
+
+                <div>
+                    <p class="eyebrow">
+                        NEEDS ATTENTION
+                    </p>
+
+                    <h2>
+                        What changed
+                    </h2>
+                </div>
+
+            </div>
+
+
+            <!-- Demo data. Dynamic rendering will replace this. -->
+
+            <article
+                class="alert-card"
+                data-event-key="subscription:Netflix:15.99:22.99"
+            >
+
+                <div class="alert-top">
+
+                    <div class="service-icon">
+                        N
+                    </div>
+
+                    <div>
+                        <h3>
+                            Netflix price increased
+                        </h3>
+
+                        <p>
+                            Detected from recurring transaction history
+                        </p>
+                    </div>
+
+
+                    <span class="badge medium alert-badge">
+                        MEDIUM
+                    </span>
+
+                </div>
+
+
+                <div class="price-change">
+
+                    <span class="old-price">
+                        CAD 15.99
+                    </span>
+
+                    <span class="arrow">
+                        →
+                    </span>
+
+                    <strong>
+                        CAD 22.99
+                    </strong>
+
+                    <span class="increase">
+                        +43.78%
+                    </span>
+
+                </div>
+
+
+                <div class="impact-grid">
+
+                    <div>
+                        <small>
+                            Monthly impact
+                        </small>
+
+                        <strong>
+                            + CAD 7.00
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <small>
+                            Annual impact
+                        </small>
+
+                        <strong>
+                            + CAD 84.00
+                        </strong>
+                    </div>
+
+
+                    <div>
+                        <small>
+                            Next expected charge
+                        </small>
+
+                        <strong>
+                            Sep 21
+                        </strong>
+                    </div>
+
+                </div>
+
+            </article>
+
+        </section>
+
+
+        <!-- =====================================
+             2. BACKGROUND MONITORING
+        ====================================== -->
+
+        <section class="monitoring-card" id="monitoringHero" data-view="overview">
+
+            <div class="monitoring-left">
+
+                <div class="monitoring-icon">
+                    ●
+                </div>
+
+                <div>
+                    <strong>
+                        Safe Signal is monitoring
+                    </strong>
+                    <span id="monitorStatusBadge">Checking…</span>
+
+                    <p>
+                        Connected financial sources are checked
+                        automatically for meaningful changes.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="monitoring-status">
+
+                <div>
+                    <span class="status-dot"></span>
+                    <span id="gmailSourceStatus">Gmail</span>
+                </div>
+
+                <div>
+                    <span class="status-dot"></span>
+                    <span id="transactionSourceStatus">Transactions</span>
+                </div>
+
+                <small id="lastChecked">
+                    Last checked: loading…
+                </small>
+                <small id="monitorInterval">
+                    Checks every 15 minutes
+                </small>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================
+             3. OVERVIEW
+        ====================================== -->
+
+        <section class="metrics overview-metrics" data-view="overview">
+
+            <article class="metric-card">
+                <div class="metric-label">Active alerts</div>
+
+                <div
+                    class="metric-value"
+                    id="activeAlertCount"
+                >
+                    —
+                </div>
+
+                <div
+                    class="metric-note warning metric-subtext"
+                    id="activeAlertNote"
+                >
+                    Checking for changes
+                </div>
+            </article>
+
+
+            <article class="metric-card">
+                <div class="metric-label">
+                    Commitments monitored
+                </div>
+
+                <div
+                    class="metric-value"
+                    id="commitmentCount"
+                >
+                    2
+                </div>
+
+                <div class="metric-note metric-subtext">
+                    Subscriptions and renewals
+                </div>
+            </article>
+
+
+            <article class="metric-card">
+                <div class="metric-label">
+                    Annual impact
+                </div>
+
+                <div
+                    class="metric-value metric-value--fit"
+                    id="annualImpact"
+                 data-fit-text>
+                    +CAD 84
+                </div>
+
+                <div class="metric-note metric-subtext">
+                    From current meaningful changes
+                </div>
+            </article>
+
+        </section>
+
+
+        <!-- =====================================
+             4. COMMITMENTS
+        ====================================== -->
+
+        <section class="content-grid">
+
+            <section
+                class="panel subscriptions-page"
+                id="subscriptionsPanel"
+                data-view="overview commitments"
+            >
+
+                <div class="subscriptions-heading">
+
+                    <div>
+                        <p class="eyebrow">
+                            SUBSCRIPTIONS
+                        </p>
+
+                        
+                    </div>
+
+                    <span class="subscription-worker-badge">
+                        <span class="status-dot"></span>
+                        Agent managed
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="subscription-summary subscription-detail-only"
+                >
+                    <div>
+                        <strong id="subscriptionTotal">
+                            ?
+                        </strong>
+                        <span>Monitored</span>
+                    </div>
+
+                    <div>
+                        <strong id="subscriptionAttention">
+                            ?
+                        </strong>
+                        <span>Need attention</span>
+                    </div>
+
+                    <div>
+                        <strong id="subscriptionFollowup">
+                            ?
+                        </strong>
+                        <span>Follow-up</span>
+                    </div>
+                </div>
+
+
+                <div
+                    class="subscription-filters subscription-detail-only"
+                    aria-label="Subscription filters"
+                >
+                    <button
+                        class="subscription-filter active"
+                        data-commitment-filter="all"
+                    >
+                        All
+                    </button>
+
+                    <button
+                        class="subscription-filter"
+                        data-commitment-filter="monitoring"
+                    >
+                        Monitoring
+                    </button>
+
+                    <button
+                        class="subscription-filter"
+                        data-commitment-filter="attention"
+                    >
+                        Needs attention
+                    </button>
+
+                    <button
+                        class="subscription-filter"
+                        data-commitment-filter="followup"
+                    >
+                        Follow-up
+                    </button>
+                </div>
+
+
+                <div
+                    id="commitmentList"
+                    class="commitment-list"
+                >
+                    <div class="commitment-loading">
+                        Loading subscriptions...
+                    </div>
+                </div>
+
+            </section>
+
+
+            <!-- =================================
+                 FINANCIAL INBOX
+            ================================== -->
+
+            <section
+                class="panel"
+                id="financialInboxPanel"
+                data-view="inbox"
+            >
+
+                <div class="panel-header">
+
+                    <div>
+                        <p class="eyebrow">
+                            FINANCIAL INBOX
+                        </p>
+
+                        <h2>
+                            Signals from Gmail
+                        </h2>
+                    </div>
+
+                </div>
+
+
+                <article class="email-card">
+
+                    <div class="email-row">
+
+                        <div class="service-icon openai">
+                            AI
+                        </div>
+
+                        <div>
+                            <strong>
+                                ChatGPT Plus
+                            </strong>
+
+                            <p>
+                                OpenAI
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <div class="email-details">
+
+                        <div>
+                            <small>
+                                Amount
+                            </small>
+
+                            <strong>
+                                CAD 25/month
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <small>
+                                Renewal
+                            </small>
+
+                            <strong>
+                                Sep 24, 2026
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </article>
+
+            </section>
+
+
+            <!-- =================================
+                 ACTIONS
+            ================================== -->
+
+            <section
+                class="panel"
+                id="actionsPanel"
+                data-view="actions"
+            >
+
+                <div class="panel-header">
+
+                    <div>
+                        <p class="eyebrow">
+                            ACTIONS
+                        </p>
+
+                        <h2>
+                            Prepared for you
+                        </h2>
+                    </div>
+
+                </div>
+
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        ✓
+                    </div>
+
+                    <h3>
+                        Nothing waiting for approval
+                    </h3>
+
+                    <p>
+                        Safe Signal will prepare an action
+                        when your decision is needed.
+                    </p>
+
+                </div>
+
+            </section>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- =============================================
+     ACTION MODAL
+============================================== -->
+
+<div
+    class="modal-backdrop"
+    id="actionModal"
+>
+
+    <div class="modal">
+
+        <div class="modal-icon">
+            !
+        </div>
+
+
+        <h2 id="actionModalTitle">
+            Confirm financial action
+        </h2>
+
+
+        <p id="actionModalDescription">
+            Safe Signal prepared this action
+            for your approval.
+        </p>
+
+
+        <div class="modal-impact">
+
+            <div>
+                <small>
+                    Current cost
+                </small>
+
+                <strong id="actionCurrentCost">
+                    —
+                </strong>
+            </div>
+
+
+            <div>
+                <small>
+                    Estimated impact
+                </small>
+
+                <strong id="actionEstimatedImpact">
+                    —
+                </strong>
+            </div>
+
+        </div>
+
+
+        <p class="approval-note">
+            Review the action before Safe Signal proceeds.
+        </p>
+
+
+        <div class="modal-buttons">
+
+            <button
+                class="secondary-button"
+                id="dismissActionButton"
+            >
+                Go back
+            </button>
+
+
+            <button
+                class="danger-filled-button"
+                id="approveActionButton"
+            >
+                Approve action
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<div
+    id="toast"
+    class="toast"
+>
+    Safe Signal is ready.
+</div>
+
+
+<script src="./app.js"></script>
+
+</body>
+
+</html>

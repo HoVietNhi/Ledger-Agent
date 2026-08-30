@@ -77,7 +77,7 @@ def _find_by_event_key(
     event_key: str,
 ) -> dict | None:
     """
-    Find an existing notification for a business event.
+    Find an existing notification for a financial event.
 
     Empty event keys are intentionally ignored so unrelated
     events without a key are not treated as duplicates.
@@ -137,11 +137,12 @@ def create_financial_notification(
     event_type: str,
     event_key: str = "",
     reminder_after_hours: int = 24,
+    commitment_id: str | None = None,
 ) -> dict:
     """
     Create one financial alert in Firestore.
 
-    The same business event must not create duplicate alerts.
+    The same financial event must not create duplicate alerts.
     """
     normalized_event_key = event_key.strip()
 
@@ -172,6 +173,7 @@ def create_financial_notification(
         "priority": priority.upper(),
         "event_type": event_type,
         "event_key": normalized_event_key,
+        "commitment_id": commitment_id,
         "status": "waiting_for_user",
         "created_at": now.isoformat(),
         "last_notified_at": now.isoformat(),
@@ -265,6 +267,11 @@ def respond_to_notification(
 ) -> dict:
     """
     Record the user's response to a notification.
+
+    Supported decisions:
+    - approve / yes
+    - reject / no / dismiss
+    - remind later
     """
     normalized_response = response.strip().lower()
 
@@ -281,22 +288,16 @@ def respond_to_notification(
         "dismiss",
     }
 
-    if normalized_response in approved_responses:
-        new_status = "user_approved"
+    reminder_responses = {
+        "remind",
+        "remind later",
+        "remind_later",
+        "later",
+    }
 
-    elif normalized_response in dismissed_responses:
-        new_status = "dismissed"
-
-    else:
-        return {
-            "success": False,
-            "message": (
-                "Unsupported response. Use yes, no, approve, "
-                "reject, or dismiss."
-            ),
-        }
-
-    notification = _get_notification(notification_id)
+    notification = _get_notification(
+        notification_id
+    )
 
     if notification is None:
         return {
@@ -316,16 +317,63 @@ def respond_to_notification(
             ),
         }
 
-    now = _now().isoformat()
+    now = _now()
+
+    if normalized_response in reminder_responses:
+        reminder_after_hours = notification.get(
+            "reminder_after_hours",
+            24,
+        )
+
+        update_document(
+            COLLECTION_NAME,
+            notification_id,
+            {
+                "user_response": "remind_later",
+                "responded_at": now.isoformat(),
+                "status": "waiting_for_user",
+                "resolved_at": None,
+                "next_reminder_at": (
+                    now
+                    + timedelta(
+                        hours=reminder_after_hours
+                    )
+                ).isoformat(),
+            },
+        )
+
+        return {
+            "success": True,
+            "notification": _get_notification(
+                notification_id
+            ),
+        }
+
+    if normalized_response in approved_responses:
+        new_status = "user_approved"
+
+    elif normalized_response in dismissed_responses:
+        new_status = "dismissed"
+
+    else:
+        return {
+            "success": False,
+            "message": (
+                "Unsupported response. Use yes, no, "
+                "approve, reject, dismiss, or remind later."
+            ),
+        }
+
+    now_iso = now.isoformat()
 
     update_document(
         COLLECTION_NAME,
         notification_id,
         {
             "user_response": normalized_response,
-            "responded_at": now,
+            "responded_at": now_iso,
             "status": new_status,
-            "resolved_at": now,
+            "resolved_at": now_iso,
         },
     )
 

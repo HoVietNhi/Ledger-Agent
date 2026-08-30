@@ -1,10 +1,14 @@
 import json
 import os
-import re
 
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+from my_agent.services.subscription_detector import (
+    analyze_subscription_for_merchant,
+    group_transactions_by_merchant,
+)
 
 from my_agent.services.financial_classifier import (
     classify_financial_email,
@@ -120,6 +124,49 @@ def analyze_transaction(merchant: str, amount: float, currency: str = "CAD", tra
 
     return analysis
 
+def detect_recurring_subscriptions(
+    transactions: list[dict],
+) -> list[dict]:
+    """
+    Detect recurring subscriptions from transaction history.
+
+    Returns only merchants whose transaction pattern
+    is confidently detected as recurring.
+    """
+
+    grouped = group_transactions_by_merchant(
+        transactions
+    )
+
+    subscriptions: list[dict] = []
+
+    for merchant, history in grouped.items():
+        analysis = analyze_subscription_for_merchant(
+            merchant,
+            history,
+        )
+
+        if not analysis.get("is_subscription"):
+            continue
+
+        if analysis["change_type"] in (
+            "price_increase",
+            "price_decrease",
+        ):
+            event_type = "subscription_price_change"
+        else:
+            event_type = "subscription_detected"
+
+        analysis = {
+            "source": "transaction_history",
+            "event_type": event_type,
+            **analysis,
+        }
+
+        subscriptions.append(analysis)
+
+    return subscriptions
+
 def load_transactions() -> list:
     """
     Load transactions from a JSON file.
@@ -161,12 +208,14 @@ def load_financial_emails() -> list:
 def scan_financial_data() -> dict:
     """
     Scan financial data for significant changes and provide insights.
-
-    Returns:
-        dict: A dictionary containing the analysis results.
     """
+
     transactions = load_transactions()
     emails = load_financial_emails()
+
+    subscriptions = detect_recurring_subscriptions(
+        transactions
+    )
 
     previous_state = load_state()
 
@@ -175,8 +224,18 @@ def scan_financial_data() -> dict:
         "transactions": transactions,
     }
 
-    changes = detect_changes(previous_state, current_state)
-    save_state(emails, transactions)
+    changes = detect_changes(
+        previous_state,
+        current_state,
+    )
+
+    changes["subscriptions"] = subscriptions
+
+    save_state(
+        emails,
+        transactions,
+        subscriptions,
+    )
 
     return changes
 
@@ -197,6 +256,7 @@ def load_state() -> dict:
         return {
             "emails": [],
             "transactions": [],
+            "subscriptions": [],
         }
 
     return {
@@ -205,19 +265,22 @@ def load_state() -> dict:
             "transactions",
             [],
         ),
+        "subscriptions": state.get("subscriptions", []),
     }
 
-def save_state(emails: list, transactions: list) -> None:
+def save_state(emails: list, transactions: list, subscriptions: list | None = None) -> None:
     """
     Save the current financial state to a Firestore.
 
     Args:
         emails (list): The list of financial emails.
         transactions (list): The list of financial transactions.
+        subscriptions (list | None): The list of recurring subscriptions.
     """
     state = {
         "emails": emails,
         "transactions": transactions,
+        "subscriptions": subscriptions or [],
         "schema_version": 1,
         "updated_at": _now().isoformat(),
         "storage": "firestore",

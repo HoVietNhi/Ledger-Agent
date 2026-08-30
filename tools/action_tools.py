@@ -10,7 +10,15 @@ from my_agent.services.firestore_service import (
     update_document,
 )
 
+from my_agent.services.commitment_service import (
+    COMMITMENT_COLLECTION,
+    find_matching_commitment,
+    update_commitment_status,
+)
 
+from my_agent.services.stripe_connector import (
+    schedule_cancel_at_period_end,
+)
 COLLECTION_NAME = "financial_actions"
 
 APP_TIMEZONE = ZoneInfo(
@@ -132,7 +140,7 @@ def approve_financial_action(
             "action": action,
             "message": (
                 f"Action {action_id} was already approved. "
-                "No duplicate execution was performed."
+                "No duplicate approval was performed."
             ),
         }
 
@@ -159,11 +167,350 @@ def approve_financial_action(
         "already_approved": False,
         "action": _get_action(action_id),
         "message": (
-            f"Action {action_id} has been approved. "
-            "Execution is simulated in this MVP."
+            f"Action {action_id} has been approved "
+            "and is ready for execution."
         ),
     }
 
+def execute_financial_action(
+    action_id: str,
+) -> dict:
+    """
+    Execute an approved financial action.
+
+    Supported execution paths:
+
+    - Stripe TEST connector:
+      schedules cancellation at the end of the current
+      billing period through the real Stripe API.
+
+    - Unsupported providers:
+      keep the existing simulated MVP fallback.
+
+    A provider action must never be marked executed if the
+    external provider call fails.
+    """
+    action = _get_action(action_id)
+
+    if action is None:
+        return {
+            "success": False,
+            "message": f"Action {action_id} was not found.",
+        }
+
+    if action.get("status") == "executed":
+        return {
+            "success": True,
+            "already_executed": True,
+            "action": action,
+            "message": (
+                f"Action {action_id} was already executed. "
+                "No duplicate execution was performed."
+            ),
+        }
+
+    if action.get("status") != "approved":
+        return {
+            "success": False,
+            "message": (
+                f"Action {action_id} must be approved before "
+                "it can be executed."
+            ),
+        }
+
+    if action.get("action_type") != "cancel_subscription":
+        return {
+            "success": False,
+            "message": (
+                f"Action type {action.get('action_type')} "
+                "is not supported for execution."
+            ),
+        }
+
+    merchant = action.get("merchant", "")
+
+    commitment = find_matching_commitment(
+        merchant,
+        preferred_type="subscription",
+    )
+
+    commitment_id = None
+    provider_connector = None
+    provider_subscription_id = None
+
+    if commitment is not None:
+        commitment_id = commitment.get(
+            "commitment_id"
+        )
+
+        provider_connector = (
+            commitment.get("provider_connector")
+        )
+
+        provider_subscription_id = (
+            commitment.get(
+                "provider_subscription_id"
+            )
+        )
+
+    executed_at = _now().isoformat()
+
+    #
+    # REAL STRIPE TEST PROVIDER EXECUTION
+    #
+    if (
+        provider_connector == "stripe"
+        and provider_subscription_id
+    ):
+        try:
+            provider_result = (
+                schedule_cancel_at_period_end(
+                    provider_subscription_id
+                )
+            )
+        except Exception as exc:
+            provider_result = {
+                "success": False,
+                "provider_connector": "stripe",
+                "error_type": type(exc).__name__,
+                "message": str(exc),
+            }
+
+        if not provider_result.get("success"):
+            update_document(
+                COLLECTION_NAME,
+                action_id,
+                {
+                    "provider_error": provider_result,
+                    "last_execution_attempt_at": (
+                        executed_at
+                    ),
+                },
+            )
+
+            return {
+                "success": False,
+                "already_executed": False,
+                "provider_result": provider_result,
+                "action": _get_action(action_id),
+                "message": (
+                    "Stripe provider execution failed. "
+                    "The action was not marked executed."
+                ),
+            }
+
+        if not provider_result.get(
+            "cancel_at_period_end"
+        ):
+            return {
+                "success": False,
+                "already_executed": False,
+                "provider_result": provider_result,
+                "message": (
+                    "Stripe did not confirm that "
+                    "cancel_at_period_end is enabled. "
+                    "The action was not marked executed."
+                ),
+            }
+
+        update_document(
+            COLLECTION_NAME,
+            action_id,
+            {
+                "status": "executed",
+                "executed_at": executed_at,
+                "execution_mode": (
+                    "provider_api_test"
+                ),
+                "commitment_id": commitment_id,
+                "provider_connector": "stripe",
+                "provider_subscription_id": (
+                    provider_subscription_id
+                ),
+                "execution_result": (
+                    provider_result
+                ),
+            },
+        )
+
+        commitment_update = None
+
+        if commitment_id:
+            commitment_update = (
+                update_commitment_status(
+                    commitment_id,
+                    "cancellation_requested",
+                    user_decision="cancel",
+                    action_status="executed",
+                )
+            )
+
+            update_document(
+                COMMITMENT_COLLECTION,
+                commitment_id,
+                {
+                    "provider_connector": "stripe",
+                    "provider_subscription_id": (
+                        provider_subscription_id
+                    ),
+                    "provider_status": (
+                        provider_result.get(
+                            "provider_status"
+                        )
+                    ),
+                    "cancel_at_period_end": (
+                        provider_result.get(
+                            "cancel_at_period_end"
+                        )
+                    ),
+                    "cancellation_effective_at": (
+                        provider_result.get(
+                            "cancellation_effective_at"
+                        )
+                    ),
+                    "provider_execution_mode": (
+                        provider_result.get(
+                            "execution_mode"
+                        )
+                    ),
+                    "provider_cancellation_scheduled": (
+                        True
+                    ),
+                    "provider_acknowledged_at": (
+                        executed_at
+                    ),
+                    "last_provider_sync_at": (
+                        executed_at
+                    ),
+                },
+            )
+
+        return {
+            "success": True,
+            "already_executed": False,
+            "action": _get_action(action_id),
+            "commitment_update": (
+                commitment_update
+            ),
+            "provider_result": provider_result,
+            "message": (
+                f"Stripe confirmed that cancellation "
+                f"for {merchant} is scheduled for the "
+                "end of the current billing period. "
+                "Safe Signal will continue monitoring "
+                "until the subscription actually ends."
+            ),
+        }
+
+    #
+    # SIMULATED FALLBACK FOR UNSUPPORTED PROVIDERS
+    #
+    update_document(
+        COLLECTION_NAME,
+        action_id,
+        {
+            "status": "executed",
+            "executed_at": executed_at,
+            "execution_mode": "simulated",
+            "commitment_id": commitment_id,
+            "execution_result": {
+                "success": True,
+                "simulated": True,
+                "operation": (
+                    "cancel_subscription"
+                ),
+                "merchant": merchant,
+            },
+        },
+    )
+
+    commitment_update = None
+
+    if commitment_id:
+        commitment_update = (
+            update_commitment_status(
+                commitment_id,
+                "cancellation_requested",
+                user_decision="cancel",
+                action_status="executed",
+            )
+        )
+
+    return {
+        "success": True,
+        "already_executed": False,
+        "action": _get_action(action_id),
+        "commitment_update": commitment_update,
+        "message": (
+            f"Simulated cancellation for "
+            f"{merchant} completed successfully. "
+            "No supported provider connector was "
+            "available. The commitment remains under "
+            "monitoring until cancellation is verified."
+        ),
+    }
+
+def prepare_cancellation_followup_action(
+    merchant: str,
+    event_key: str,
+    reason: str,
+) -> dict:
+    """
+    Prepare one follow-up action when a charge is detected
+    after a cancellation request.
+
+    The same financial event must not create duplicate actions.
+    """
+    normalized_event_key = event_key.strip()
+
+    if not normalized_event_key:
+        return {
+            "success": False,
+            "created": False,
+            "reason": "missing_event_key",
+        }
+
+    for existing in _load_action_log():
+        if (
+            existing.get("event_key")
+            == normalized_event_key
+            and existing.get("action_type")
+            == "cancellation_followup"
+        ):
+            return {
+                "success": True,
+                "created": False,
+                "action": existing,
+            }
+
+    action = prepare_financial_action(
+        merchant,
+        "cancellation_followup",
+        reason,
+    )
+
+    action_id = action.get("action_id")
+
+    if not action_id:
+        return {
+            "success": False,
+            "created": False,
+            "reason": "action_creation_failed",
+        }
+
+    update_document(
+        COLLECTION_NAME,
+        action_id,
+        {
+            "event_key": normalized_event_key,
+        },
+    )
+
+    return {
+        "success": True,
+        "created": True,
+        "action": _get_action(action_id),
+    }
 
 def list_pending_actions() -> list:
     """
